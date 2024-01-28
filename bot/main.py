@@ -93,7 +93,7 @@ async def cmd_del(message: types.Message, command: CommandObject):
         cursor.execute("DELETE FROM Products WHERE user_id=? AND market=? AND article=?",
                        (message.chat.id, market, article))
         connection.commit()
-        await message.answer(data["article_delited"])
+        await message.answer(data["article_deleted"])
 
 
 @dp.message(Command("view"))
