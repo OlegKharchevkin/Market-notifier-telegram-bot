@@ -1,0 +1,9 @@
+version: '3'
+services:
+  bot:
+    env_file:
+      - .env
+    restart: always
+    build: bot
+    volumes:
+      - ./bot/db:/bot/db

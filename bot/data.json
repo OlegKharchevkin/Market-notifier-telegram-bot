@@ -1,0 +1,29 @@
+{
+    "markets": [
+        "ozon",
+        "wildberies"
+    ],
+    "modes": [
+        "all",
+        "new"
+    ],
+    "start_message": "Этот бот позволяет отслеживать цены на Ozon и Wildberies.\nДля добавления товара ввести:\n/add <market> <article>\nПример:\n/add ozon 123456\n\nСправка: /help",
+    "wrong_add": "Ошибка: неправильный формат команды. Пример:\n/add <market> <article>",
+    "wrong_market": "Этот магазин не поддерживается.",
+    "wrong_article": "Товар не найден.",
+    "article_added": "Товар добавлен.",
+    "wrong_del": "Ошибка: неправильный формат команды. Пример:\n/del <market> <article>",
+    "article_deleted": "Товар удалён.",
+    "list_empty": "Список товаров пуст.",
+    "list_header": "Список товаров:",
+    "list_element": "{1} на {0} стоит {2} руб.",
+    "wrong_mode": "Ошибка: неправильный формат команды. Пример:\n/mode all\n/mode new",
+    "mode_changed": "Режим изменён.",
+    "notification_header": "Новые цены:",
+    "notification_element": "{1} на {0} стоил {2} руб. и стоит {3} руб.",
+    "wrong_time": "Ошибка: неправильный формат команды. Пример:\n/time <часы>:<минуты> <часовой пояс по МСК>\n/time 8:00 +0",
+    "time_changed": "Время изменёно.",
+    "paused": "Уведомления приостановлены.",
+    "resumed": "Уведомления возобновлены.",
+    "help": "Добавление товаров:\n/add <market> <article>\n\nУдаление товаров:\n/del <market> <article>\n\nСписок товаров:\n/view\n\nРежим напоминаний:\nall - показывает все цены\nnew - показывает только новые цены\n/mode <all|new>\n\nВремя напоминаний:\n/time <часы>:<минуты> <часовой пояс по МСК>\n\nПриостановить напоминания:\n/pause\n\nВозобновить напоминания:\n/resume\n\nРаботает только с Ozon и Wildberries."
+}
