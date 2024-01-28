@@ -43,7 +43,8 @@ async def cmd_add(message: types.Message, command: CommandObject):
         await message.answer(data["wrong_add"])
         return
     try:
-        market, article = command.args.split(" ", maxsplit=1)
+        market, article, *description = command.args.split(" ")
+        description = " ".join(description)
         article = int(article)
     except ValueError:
         await message.answer(data["wrong_add"])
@@ -52,7 +53,7 @@ async def cmd_add(message: types.Message, command: CommandObject):
         await message.answer(data["wrong_market"])
         return
     info = cursor.execute(
-        "SELECT * FROM Products WHERE user_id=? AND market=? AND article=?", (message.chat.id, market, article))
+        "SELECT * FROM Products WHERE user_id=? AND market=? AND article=? AND description=?", (message.chat.id, market, article, description))
     if info.fetchone() is None:
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url(market, article)) as response:
@@ -62,8 +63,8 @@ async def cmd_add(message: types.Message, command: CommandObject):
                 except Exception as e:
                     await message.answer(data["wrong_article"])
                     return
-        cursor.execute("INSERT INTO Products (user_id, market, article, price) VALUES (?, ?, ?, ?)",
-                       (message.chat.id, market, article, price))
+        cursor.execute("INSERT INTO Products (user_id, market, article, price, description) VALUES (?, ?, ?, ?, ?)",
+                       (message.chat.id, market, article, price, description))
         connection.commit()
         await message.answer(data["article_added"])
 
@@ -98,7 +99,7 @@ async def cmd_del(message: types.Message, command: CommandObject):
 @dp.message(Command("view"))
 async def cmd_view(message: types.Message):
     products = cursor.execute(
-        "SELECT market, article, price FROM Products WHERE user_id=?", (message.chat.id,))
+        "SELECT market, article, price, description FROM Products WHERE user_id=?", (message.chat.id,))
     answer = []
     for article in products:
         answer.append(data["list_element"].format(*article))
@@ -165,9 +166,9 @@ async def notification(bot: Bot, user_id: int):
     mode = cursor.execute(
         "SELECT mode FROM Users WHERE user_id=?", (user_id,)).fetchone()[0]
     products = cursor.execute(
-        "SELECT market, article, price FROM Products WHERE user_id=?", (user_id,)).fetchall()
+        "SELECT market, article, price, description FROM Products WHERE user_id=?", (user_id,)).fetchall()
     answers = []
-    for market, article, last_price in products:
+    for market, article, last_price, description in products:
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url(market, article)) as response:
                 try:
@@ -178,7 +179,7 @@ async def notification(bot: Bot, user_id: int):
                        (price, user_id, market, article))
         connection.commit()
         if mode == 0 or (mode == 1 and last_price != price):
-            answers.append([market, article, last_price, price])
+            answers.append([market, article, last_price, price, description])
     try:
         await bot.send_message(user_id, data["notification_header"])
         await bot.send_message(user_id, "\n".join([data["notification_element"].format(*answer) for answer in answers]))
@@ -208,7 +209,8 @@ if __name__ == "__main__":
         user_id INTEGER,
         market TEXT,
         article INTEGER,
-        price INTEGER
+        price INTEGER,
+        description TEXT
         )
         ''')
         connection.commit()
