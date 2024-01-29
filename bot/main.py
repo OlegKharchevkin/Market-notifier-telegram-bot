@@ -203,10 +203,10 @@ async def cmd_help(message: types.Message):
 
 @dp.message(Command("status"))
 async def cmd_status(message: types.Message):
-    status = cursor.execute(
+    hour, minute, timezone, paused = cursor.execute(
         "SELECT hour, minute, timezone, paused FROM users WHERE user_id=?", (user_id,)).fetchone()
-    status[3] = data["on"] if status[3] else data["off"]
-    await message.answer(data["status"].format(*status))
+    paused = data["off"] if paused else data["on"]
+    await message.answer(data["status"].format(hour, minute, timezone, paused))
 
 
 async def notification(bot: Bot, user_id: int):
