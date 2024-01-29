@@ -53,7 +53,7 @@ async def cmd_add(message: types.Message, command: CommandObject):
         await message.answer(data["wrong_market"])
         return
     info = cursor.execute(
-        "SELECT * FROM Products WHERE user_id=? AND market=? AND article=? AND description=?", (message.chat.id, market, article, description))
+        "SELECT * FROM Products WHERE user_id=? AND market=? AND article=?", (message.chat.id, market, article))
     if info.fetchone() is None:
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url(market, article)) as response:
