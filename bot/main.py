@@ -32,7 +32,7 @@ async def cmd_start(message: types.Message):
         scheduler.add_job(notification, trigger='cron',  hour=8,
                           minute=0, id=str(user_id), args=(bot, user_id))
         cursor.execute(
-            "INSERT INTO Users (user_id, mode, hour, minute) VALUES (?, ?, ?, ?)", (user_id, 0, 8, 0))
+            "INSERT INTO Users (user_id) VALUES (?)", (user_id,))
         connection.commit()
         await message.answer(data["start_message"])
 
@@ -130,29 +130,66 @@ async def cmd_time(message: types.Message, command: CommandObject):
         await message.answer(data["wrong_time"])
         return
     try:
-        time, time_zone = command.args.split(" ", maxsplit=1)
+        time, timezone = command.args.split(" ")
         hour, minute = time.split(":")
-        hour = int(hour) + int(time_zone.removeprefix("+"))
+        hour = int(hour)
         minute = int(minute)
+        if timezone.isnumeric():
+            timezone = int(timezone)
+        else:
+            timezone = cursor.execute(
+                "SELECT timezone FROM Users WHERE user_id=?", (message.chat.id,)).fetchone()[0]
     except ValueError:
         await message.answer(data["wrong_time"])
         return
+    if hour < 0 or hour > 23:
+        await message.answer(data["wrong_time"])
+        return
+    if minute < 0 or minute > 59:
+        await message.answer(data["wrong_time"])
+        return
     scheduler.reschedule_job(
-        job_id=str(message.chat.id), trigger="cron", hour=hour, minute=minute)
+        job_id=str(message.chat.id), trigger="cron", hour=(hour + timezone) % 24, minute=minute)
     cursor.execute("UPDATE Users SET hour=?, minute=? WHERE user_id=?",
                    (hour, minute, message.chat.id))
     connection.commit()
     await (message.answer(data["time_changed"]))
 
 
+@dp.message(Command("timezone"))
+async def cmd_timezone(message: types.Message, command: CommandObject):
+    if command.args is None:
+        await message.answer(data["wrong_timezone"])
+        return
+    try:
+        timezone = int(command.args)
+    except ValueError:
+        await message.answer(data["wrong_timezone"])
+        return
+    hour, minute = cursor.execute(
+        "SELECT hour, minute FROM Users WHERE user_id=?", (message.chat.id,)).fetchone()
+    cursor.execute("UPDATE Users SET timezone=? WHERE user_id=?",
+                   (timezone, message.chat.id))
+    connection.commit()
+    scheduler.reschedule_job(job_id=str(message.chat.id), trigger="cron", hour=(
+        hour + timezone) % 24, minute=minute)
+    await (message.answer(data["timezone_changed"]))
+
+
 @dp.message(Command("pause"))
 async def cmd_pause(message: types.Message):
+    cursor.execute("UPDATE Users SET paused=? WHERE user_id=?",
+                   (1, message.chat.id))
+    connection.commit()
     scheduler.pause_job(job_id=str(message.chat.id))
     await message.answer(data["paused"])
 
 
 @dp.message(Command("resume"))
 async def cmd_resume(message: types.Message):
+    cursor.execute("UPDATE Users SET paused=? WHERE user_id=?",
+                   (0, message.chat.id))
+    connection.commit()
     scheduler.resume_job(job_id=str(message.chat.id))
     await message.answer(data["resumed"])
 
@@ -160,6 +197,14 @@ async def cmd_resume(message: types.Message):
 @dp.message(Command("help"))
 async def cmd_help(message: types.Message):
     await message.answer(data["help"])
+
+
+@dp.message(Command("status"))
+async def cmd_status(message: types.Message):
+    status = cursor.execute(
+        "SELECT hour, minute, timezone, paused FROM users WHERE user_id=?", (user_id,))
+    status[3] = data["on"] if status[3] else data["off"]
+    await message.answer(data["status"].format(*status))
 
 
 async def notification(bot: Bot, user_id: int):
@@ -196,28 +241,28 @@ async def main():
 if __name__ == "__main__":
     try:
         cursor.execute('''
-        CREATE TABLE IF NOT EXISTS "Users" (
+        CREATE TABLE IF NOT EXISTS Users (
         user_id INTEGER UNIQUE,
-        mode INTEGER,
-        hour INTEGER,
-        minute INTEGER
-        )
+        mode INTEGER NOT NULL DEFAULT 0,
+        hour INTEGER NOT NULL DEFAULT 8,
+        minute INTEGER NOT NULL DEFAULT 0,
+        timezone TEXT NOT NULL DEFAULT 0,
+        paused INTEGER NOT NULL DEFAULT 0)
         ''')
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS Products (
         id INTEGER PRIMARY KEY,
-        user_id INTEGER,
-        market TEXT,
-        article INTEGER,
-        price INTEGER,
-        description TEXT
-        )
+        user_id INTEGER NOT NULL,
+        market TEXT NOT NULL,
+        article INTEGER NOT NULL,
+        price INTEGER NOT NULL, 
+        description TEXT NOT NULL DEFAULT "")
         ''')
         connection.commit()
         jobs = cursor.execute(
-            "SELECT user_id, hour, minute FROM Users").fetchall()
-        for user_id, hour, minute in jobs:
-            scheduler.add_job(notification, trigger='cron',  hour=hour,
+            "SELECT user_id, hour, minute, timezone FROM Users").fetchall()
+        for user_id, hour, minute, timezone in jobs:
+            scheduler.add_job(notification, trigger='cron',  hour=(hour + timezone) % 24,
                               minute=minute, id=str(user_id), args=(bot, user_id))
         print("ready")
         asyncio.run(main())
