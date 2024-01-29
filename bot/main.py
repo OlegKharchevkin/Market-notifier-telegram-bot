@@ -246,7 +246,7 @@ if __name__ == "__main__":
         mode INTEGER NOT NULL DEFAULT 0,
         hour INTEGER NOT NULL DEFAULT 8,
         minute INTEGER NOT NULL DEFAULT 0,
-        timezone TEXT NOT NULL DEFAULT 0,
+        timezone INTEGER NOT NULL DEFAULT 0,
         paused INTEGER NOT NULL DEFAULT 0)
         ''')
         cursor.execute('''
