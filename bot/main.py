@@ -130,15 +130,17 @@ async def cmd_time(message: types.Message, command: CommandObject):
         await message.answer(data["wrong_time"])
         return
     try:
-        time, timezone = command.args.split(" ")
+        time = ""
+        try:
+            time, timezone = command.args.split(" ")
+            timezone = int(timezone)
+        except ValueError:
+            time = command.args
+            timezone = cursor.execute(
+                "SELECT timezone FROM Users WHERE user_id=?", (message.chat.id,)).fetchone()[0]
         hour, minute = time.split(":")
         hour = int(hour)
         minute = int(minute)
-        if timezone.isnumeric():
-            timezone = int(timezone)
-        else:
-            timezone = cursor.execute(
-                "SELECT timezone FROM Users WHERE user_id=?", (message.chat.id,)).fetchone()[0]
     except ValueError:
         await message.answer(data["wrong_time"])
         return
@@ -150,8 +152,8 @@ async def cmd_time(message: types.Message, command: CommandObject):
         return
     scheduler.reschedule_job(
         job_id=str(message.chat.id), trigger="cron", hour=(hour + timezone) % 24, minute=minute)
-    cursor.execute("UPDATE Users SET hour=?, minute=? WHERE user_id=?",
-                   (hour, minute, message.chat.id))
+    cursor.execute("UPDATE Users SET hour=?, minute=?, timezone=? WHERE user_id=?",
+                   (hour, minute, timezone, message.chat.id))
     connection.commit()
     await (message.answer(data["time_changed"]))
 
@@ -202,7 +204,7 @@ async def cmd_help(message: types.Message):
 @dp.message(Command("status"))
 async def cmd_status(message: types.Message):
     status = cursor.execute(
-        "SELECT hour, minute, timezone, paused FROM users WHERE user_id=?", (user_id,))
+        "SELECT hour, minute, timezone, paused FROM users WHERE user_id=?", (user_id,)).fetchone()
     status[3] = data["on"] if status[3] else data["off"]
     await message.answer(data["status"].format(*status))
 
@@ -226,8 +228,9 @@ async def notification(bot: Bot, user_id: int):
         if mode == 0 or (mode == 1 and last_price != price):
             answers.append([market, article, last_price, price, description])
     try:
-        await bot.send_message(user_id, data["notification_header"])
-        await bot.send_message(user_id, "\n".join([data["notification_element"].format(*answer) for answer in answers]))
+        if answers != []:
+            await bot.send_message(user_id, data["notification_header"])
+            await bot.send_message(user_id, "\n".join([data["notification_element"].format(*answer) for answer in answers]))
     except exceptions.TelegramForbiddenError:
         cursor.execute("DELETE FROM Users WHERE user_id=?", (user_id,))
         cursor.execute("DELETE FROM Products WHERE user_id=?", (user_id,))
